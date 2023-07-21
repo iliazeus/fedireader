@@ -314,6 +314,7 @@
           if (clear) container.replaceChildren();
 
           const post = await fedi.fetch(postOrUrl, {
+            log: console.log,
             backendUrl,
             fetch: niceFetch,
             signal,
@@ -334,6 +335,7 @@
           const repliesPromise =
             maxDepth > 1
               ? fedi.fetch(post.replies, {
+                  log: console.log,
                   backendUrl,
                   responseType: "collection",
                   fetch: niceFetch,
@@ -342,6 +344,7 @@
               : Promise.resolve(null);
 
           post.attributedTo = await fedi.fetch(post.attributedTo, {
+            log: console.log,
             backendUrl,
             fetch: niceFetch,
             signal,
