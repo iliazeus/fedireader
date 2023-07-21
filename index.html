@@ -5,16 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="https://unpkg.com/handlebars@4.7.7/dist/handlebars.min.js"></script>
     <script type="module">
-      import niceFetch from "https://unpkg.com/fedijs@0.2.1/nice-fetch.js";
-      import * as fedi from "https://unpkg.com/fedijs@0.2.1/fedi.js";
+      import makeNiceFetch from "https://unpkg.com/fedijs@0.3.1/nice-fetch.js";
+      import * as fedi from "https://unpkg.com/fedijs@0.3.1/fedi.js";
 
-      window.niceFetch = (url, opts) =>
-        niceFetch(url, {
-          ...opts,
-          corsProxyPrefix: "https://corsproxy.io/?",
-          maxRetryCount: 5,
-          timeout: 30000,
-        });
+      // window.backendUrl = "http://localhost:8081";
+      window.backendUrl = null;
+
+      window.niceFetch = makeNiceFetch({
+        maxRetryCount: 5,
+        retryTimeout: 1000,
+        timeout: 30000,
+        corsProxyPrefix: backendUrl ? undefined : "https://corsproxy.io/?",
+        concurrency: 4,
+      });
 
       window.fedi = fedi;
     </script>
@@ -258,7 +261,7 @@
     </script>
 
     <template data-for="post-error" data-tag="article">
-      <p class="error">{{ url }}: {{ error.message }}</p>
+      <p class="error">{{ error.message }}</p>
     </template>
 
     <script>
@@ -269,11 +272,11 @@
 
       window.renderPostError = (
         error,
-        { url, isRequested, container, depth } = {}
+        { isRequested, container, depth } = {}
       ) => {
         const postErrorEl = document.createElement(postErrorTplEl.dataset.tag);
 
-        postErrorEl.innerHTML = postErrorTpl({ url, error });
+        postErrorEl.innerHTML = postErrorTpl({ error });
 
         postErrorEl.dataset.depth = depth;
         postErrorEl.style.setProperty("--depth", depth);
@@ -311,6 +314,7 @@
           if (clear) container.replaceChildren();
 
           const post = await fedi.fetch(postOrUrl, {
+            backendUrl,
             fetch: niceFetch,
             signal,
           });
@@ -327,7 +331,18 @@
             });
           }
 
+          const repliesPromise =
+            maxDepth > 1
+              ? fedi.fetch(post.replies, {
+                  backendUrl,
+                  responseType: "collection",
+                  fetch: niceFetch,
+                  signal,
+                })
+              : Promise.resolve(null);
+
           post.attributedTo = await fedi.fetch(post.attributedTo, {
+            backendUrl,
             fetch: niceFetch,
             signal,
           });
@@ -348,26 +363,28 @@
 
           const repliesEl = postEl.querySelector("section[data-for='replies']");
 
-          const replies = await fedi.fetch(post.replies, {
-            responseType: "collection",
-            fetch: niceFetch,
-            signal,
-          });
-
+          const replies = await repliesPromise;
           if (!replies) return;
 
+          const replyQueue = [];
+
           for await (const reply of replies) {
-            await loadPost(reply, {
+            const promise = loadPost(reply, {
               container: repliesEl,
               requestedPostId,
               depth: depth + 1,
               maxDepth: maxDepth && maxDepth - 1,
               signal,
             });
+
+            replyQueue.push(promise);
           }
+
+          while (replyQueue.length > 0) await replyQueue.shift();
         } catch (error) {
+          console.error(error);
+
           renderPostError(error, {
-            url: typeof postOrUrl === "string" ? postOrUrl : postOrUrl.id,
             container,
             depth,
           });
