@@ -311,8 +311,6 @@
           signal,
         } = {}
       ) => {
-        console.log(postOrUrl);
-
         if (!container) throw new TypeError("container");
 
         let postEl;
@@ -383,33 +381,24 @@
             return;
           }
 
+          const tasks = [];
+
           for await (const reply of replies) {
-            await loadPost(reply, {
-              container: repliesEl,
-              requestedPostId,
-              depth: depth + 1,
-              maxDepth: maxDepth && maxDepth - 1,
-              signal,
-            });
+            const container = document.createElement("span");
+            repliesEl.appendChild(container);
+
+            tasks.push(
+              loadPost(reply, {
+                container,
+                requestedPostId,
+                depth: depth + 1,
+                maxDepth: maxDepth && maxDepth - 1,
+                signal,
+              })
+            );
           }
 
-          // TODO: load comments concurrently without breaking their order
-
-          // const replyQueue = [];
-
-          // for await (const reply of replies) {
-          //   const promise = loadPost(reply, {
-          //     container: repliesEl,
-          //     requestedPostId,
-          //     depth: depth + 1,
-          //     maxDepth: maxDepth && maxDepth - 1,
-          //     signal,
-          //   });
-
-          //   replyQueue.push(promise);
-          // }
-
-          // while (replyQueue.length > 0) await replyQueue.shift();
+          await Promise.all(tasks);
         } catch (error) {
           console.error(error);
 
