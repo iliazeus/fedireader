@@ -382,21 +382,33 @@
             return;
           }
 
-          const replyQueue = [];
-
           for await (const reply of replies) {
-            const promise = loadPost(reply, {
+            await loadPost(reply, {
               container: repliesEl,
               requestedPostId,
               depth: depth + 1,
               maxDepth: maxDepth && maxDepth - 1,
               signal,
             });
-
-            replyQueue.push(promise);
           }
 
-          while (replyQueue.length > 0) await replyQueue.shift();
+          // TODO: load comments concurrently without breaking their order
+
+          // const replyQueue = [];
+
+          // for await (const reply of replies) {
+          //   const promise = loadPost(reply, {
+          //     container: repliesEl,
+          //     requestedPostId,
+          //     depth: depth + 1,
+          //     maxDepth: maxDepth && maxDepth - 1,
+          //     signal,
+          //   });
+
+          //   replyQueue.push(promise);
+          // }
+
+          // while (replyQueue.length > 0) await replyQueue.shift();
         } catch (error) {
           console.error(error);
 
