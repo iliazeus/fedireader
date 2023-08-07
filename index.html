@@ -114,6 +114,8 @@
       }
     </style>
     <script>
+      Handlebars.registerHelper("or", (...args) => args.find((x) => !!x));
+
       Handlebars.registerHelper("urlOrId", (obj) => {
         return obj.url ?? obj.id;
       });
@@ -231,22 +233,31 @@
         {{#if post.attachment}}
         <details class="attachments">
           <summary>attachments</summary>
-          {{#each post.attachment}}
+          {{#each post.attachment}} {{#if (documentIsImage this)}}
           <a target="_blank" href="{{ url }}">
-            {{#if (documentIsImage this)}}
             <img
               alt="{{ summary }}"
               src="{{ url }}"
               loading="lazy"
               height="128px"
             />
-            {{else if (documentIsAudio this)}}
-            <audio title="{{ summary }}" src="{{ url }}" />
-            {{else if (documentIsVideo this)}}
-            <video title="{{ summary }}" src="{{ url }}" />
-            {{else}} {{ mediaType }}: {{ url }} {{/if}}
           </a>
-          {{/each}}
+          {{else if (documentIsAudio this)}}
+          <audio controls title="{{or summary 'Audio' }}" src="{{ url }}">
+            <a target="_blank" href="{{ url }}"> {{ mediaType }}: {{ url }} </a>
+          </audio>
+          {{else if (documentIsVideo this)}}
+          <video
+            controls
+            title="{{or summary 'Video'}}"
+            src="{{ url }}"
+            height="128px"
+          >
+            <a target="_blank" href="{{ url }}"> {{ mediaType }}: {{ url }} </a>
+          </video>
+          {{else}}
+          <a target="_blank" href="{{ url }}"> {{ mediaType }}: {{ url }} </a>
+          {{/if}} {{/each}}
         </details>
         {{/if}}
         <section class="content">{{{ post.content }}}</section>
