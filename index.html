@@ -286,7 +286,7 @@
     </script>
 
     <template data-for="post-error" data-tag="article">
-      <p class="error">{{ error.message }}</p>
+      <p class="error">{{or error.message error }}</p>
     </template>
 
     <script>
